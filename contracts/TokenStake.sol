@@ -20,6 +20,7 @@ contract TokenStake {
     bool stakingEnabled;
     uint256 public totalStakedValue;
     uint256 stakeUpdateCounter;
+    address devaddress;
 
     event Harvest(address sender, uint256 amount);
     event AddedStake(address sender, uint256 stakeId);
@@ -49,6 +50,10 @@ contract TokenStake {
         iart = IBEP20(styliart);
         stakingEnabled = true;
         owner = _owner;
+    }
+
+    function setDevAddress(address _devaddress) external onlyOwner {
+        devaddress = _devaddress;
     }
 
     function setBepAddress(address bep) external onlyOwner {
@@ -130,24 +135,31 @@ contract TokenStake {
         );
         accumulatedRewards[stakeId] = 0;
 
-        emit Harvest(msg.sender, reward);
         totalDistributed += reward;
         _tokenStake.startTime = block.timestamp;
         stakeIdToStake[stakeId] = _tokenStake;
         delete stakeToAddress[_tokenStake.stakeId];
         totalStakedValue = totalStakedValue.sub(_tokenStake.tokenValue);
         numberOfStaked[msg.sender] = numberOfStaked[msg.sender].sub(1);
-
         updateRates();
-        require(iart.balanceOf(address(this)) >= reward, "FUND");
-        require(iart.transfer(msg.sender, reward));
+        require(_harvest(reward, msg.sender));
         tokenFactory.safeTransferFrom(
             address(this),
             msg.sender,
             _tokenStake.tokenId
         );
-
         emit RemovedStake(msg.sender, stakeId, reward);
+    }
+
+    function _harvest(uint256 reward, address to) internal returns (bool) {
+        uint256 burnFee = reward.div(10);
+
+/*         require(iart.mint(burnFee, devaddress));
+        require(iart.mint(reward.sub(burnFee), to)); */
+
+        require(iart.balanceOf(address(this)) >= reward, "FUND");
+        require(iart.transfer(devaddress, burnFee));
+        require(iart.transfer(msg.sender, reward.sub(burnFee)));
         emit Harvest(msg.sender, reward);
     }
 
@@ -273,10 +285,8 @@ contract TokenStake {
         totalDistributed += reward;
         updateRates();
 
-        require(iart.balanceOf(address(this)) >= reward, "FUND");
-        require(iart.transfer(msg.sender, reward));
+        _harvest(reward, msg.sender);
 
-        emit Harvest(msg.sender, reward);
         return true;
     }
 }

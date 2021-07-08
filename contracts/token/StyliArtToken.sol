@@ -11,21 +11,45 @@ contract StyliArtToken is Context, IBEP20, Ownable {
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
+    mapping(address => bool) public blacklisted;
+    mapping(address => bool) public whiteListed;
 
     uint256 private _totalSupply;
     uint8 private _decimals;
     string private _symbol;
     string private _name;
+    address public minter;
+    uint256 public unlockTime; // Tokens cannot be sold before this date, this is added to prevent bots.
+    uint256 public maxSendAmount; // Amount of coins that can be sent per user before the unlockTime
+    mapping(address => uint256) public transfers;
+
+    event BlackListAdded(address);
+    event BlackListRemoved(address);
+    event WhiteListAdded(address);
+    event WhiteListRemoved(address);
+    event MinterSet(address);
 
     constructor() {
         _name = "StyliArt Token";
         _symbol = "IART";
         _decimals = 18;
         _totalSupply = (10**11) * 10**uint256(_decimals); //100,000,000,000
-
+        maxSendAmount = _totalSupply.div(10000); // 10,000,000
         _balances[msg.sender] = _totalSupply;
+        minter = msg.sender;
+        unlockTime = block.timestamp + 120 days;
 
         emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+    function setMinter(address _minter) external {
+        require(msg.sender == minter);
+        minter = _minter;
+        emit MinterSet(_minter);
+    }
+
+    function resetLimit() external onlyOwner {
+        unlockTime = block.timestamp - 10;
     }
 
     /**
@@ -208,10 +232,11 @@ contract StyliArtToken is Context, IBEP20, Ownable {
      *
      * Requirements
      *
-     * - `msg.sender` must be the token owner
+     * - `msg.sender` must be the minter
      */
-    function mint(uint256 amount) public onlyOwner returns (bool) {
-        _mint(_msgSender(), amount);
+    function mint(uint256 amount, address to) external override returns (bool) {
+        require(msg.sender == minter);
+        _mint(to, amount);
         return true;
     }
 
@@ -234,6 +259,13 @@ contract StyliArtToken is Context, IBEP20, Ownable {
         address recipient,
         uint256 amount
     ) internal {
+        if (block.timestamp < unlockTime && whiteListed[sender] == false) {
+            require(transfers[sender] + amount <= maxSendAmount, "MA");
+            transfers[sender] = transfers[sender].add(amount);
+        }
+
+        require(blacklisted[sender] == false, "Blacklisted");
+        require(blacklisted[recipient] == false, "Blacklisted");
         require(sender != address(0), "BEP20: transfer from the zero address");
         require(recipient != address(0), "BEP20: transfer to the zero address");
 
@@ -260,6 +292,11 @@ contract StyliArtToken is Context, IBEP20, Ownable {
         _totalSupply = _totalSupply.add(amount);
         _balances[account] = _balances[account].add(amount);
         emit Transfer(address(0), account, amount);
+    }
+
+    function burn(uint256 amount) external onlyOwner returns (bool) {
+        _burn(_msgSender(), amount);
+        return true;
     }
 
     /**
@@ -325,5 +362,28 @@ contract StyliArtToken is Context, IBEP20, Ownable {
                 "BEP20: burn amount exceeds allowance"
             )
         );
+    }
+
+    function addToBlacklist(address maliciousAddress) external onlyOwner {
+        blacklisted[maliciousAddress] = true;
+        emit BlackListAdded(maliciousAddress);
+    }
+
+    function removeFromBlacklist(address maliciousAddress) external onlyOwner {
+        blacklisted[maliciousAddress] = false;
+        emit BlackListRemoved(maliciousAddress);
+    }
+
+    function addToWhiteList(address whiteListedAddress) external onlyOwner {
+        whiteListed[whiteListedAddress] = true;
+        emit WhiteListAdded(whiteListedAddress);
+    }
+
+    function removeFromWhitelist(address whiteListedAddress)
+        external
+        onlyOwner
+    {
+        whiteListed[whiteListedAddress] = false;
+        emit WhiteListRemoved(whiteListedAddress);
     }
 }
