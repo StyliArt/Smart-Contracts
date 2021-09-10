@@ -10,7 +10,7 @@
 
  */
 
-pragma solidity ^0.6.12;
+pragma solidity ^0.7.0;
 // SPDX-License-Identifier: Unlicensed
 interface IERC20 {
 
@@ -412,7 +412,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor ()  {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -463,14 +463,14 @@ contract Ownable is Context {
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
         _owner = address(0);
-        _lockTime = now + time;
+        _lockTime = block.timestamp + time;
         emit OwnershipTransferred(_owner, address(0));
     }
     
     //Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
-        require(now > _lockTime , "Contract is locked until 7 days");
+        require(block.timestamp > _lockTime , "Contract is locked until 7 days");
         emit OwnershipTransferred(_owner, _previousOwner);
         _owner = _previousOwner;
     }
@@ -690,7 +690,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract StyliArt is Context, IERC20, Ownable {
+contract StyliArtToken is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -749,7 +749,7 @@ contract StyliArt is Context, IERC20, Ownable {
     constructor (address _marketingWallet) public {
         _rOwned[_msgSender()] = _rTotal;
         marketingWallet = _marketingWallet;
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
          // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
