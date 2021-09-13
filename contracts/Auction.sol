@@ -49,20 +49,20 @@ contract Auction {
             reasonCancel == ReasonCancel.NOTHING,
             "This Auction has been cancelled"
         );
-        require(block.number <= endTime, "This Auction has been ended");
+        require(block.timestamp <= endTime, "This Auction has been ended");
         _;
     }
 
     modifier finished {
         require(
-            block.number > endTime || reasonCancel != ReasonCancel.NOTHING,
+            block.timestamp > endTime || reasonCancel != ReasonCancel.NOTHING,
             "This Auction is still active"
         );
         _;
     }
 
     function getReasonCancel() external view returns (uint256) {
-        if (block.number > endTime) {
+        if (block.timestamp > endTime) {
             return uint256(ReasonCancel.TIMED_OUT);
         }
         return uint256(reasonCancel);
@@ -99,7 +99,7 @@ contract Auction {
         owner = _owner; // Auction owner
         highestBidder = _owner;
 
-        endTime = block.number + _duration;
+        endTime = block.timestamp + _duration;
         tokenId = _tokenId;
         startPrice = _startPrice;
         directBuy = _directBuy;
